@@ -1,7 +1,9 @@
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
+use std::time::Instant;
 use byteorder::{LittleEndian, ReadBytesExt};
+use log::{debug, info};
 
 const PAK_SIGNATURE: [u8; 4] = [
     0x4C,
@@ -97,6 +99,9 @@ impl FileEntry {
 }
 
 fn main() {
+    let now = Instant::now();
+    env_logger::builder().try_init().unwrap();
+
     // todo: add good argument parser
     let path = std::env::args().last().unwrap();
     let f = File::open(path.clone()).expect("no file found");
@@ -116,7 +121,7 @@ fn main() {
     }
 
     let pak_version = reader.read_u32::<LittleEndian>().unwrap();
-    println!("Pak version: {}", pak_version);
+    debug!("Pak version: {}", pak_version);
 
     let header = PackHeader::from_reader(&mut reader, pak_version).unwrap();
 
@@ -125,10 +130,10 @@ fn main() {
     let num_files = reader.read_i32::<LittleEndian>().unwrap();
     let compressed_size = reader.read_i32::<LittleEndian>().unwrap();
 
-    println!("start file list: {:?}", header.file_list_offset);
-    println!("flags: {:?}", header.flags);
-    println!("num_files: {:?}", num_files);
-    println!("compressed_size: {:?}", compressed_size);
+    debug!("start file list: {:?}", header.file_list_offset);
+    debug!("flags: {:?}", header.flags);
+    debug!("num_files: {:?}", num_files);
+    debug!("compressed_size: {:?}", compressed_size);
 
     let mut compressed_file_list = vec![0u8; compressed_size as usize];
     reader.read_exact(&mut compressed_file_list).unwrap();
@@ -151,10 +156,10 @@ fn main() {
     file_entries.into_iter().for_each(|entry| {
         let pos_shifted = (entry.offset_in_file2 as u64) << 32;
         let file_pos_start = (entry.offset_in_file1 as u64 | pos_shifted);
-        println!("file: {}", entry.name);
-        println!("Offset in file: {}", file_pos_start);
-        println!("Size on disk: {}", entry.size_on_disk);
-        println!("Uncompressed size: {}", entry.uncompressed_size);
+        info!("unpacking file: {}", entry.name);
+        debug!("Offset in file: {}", file_pos_start);
+        debug!("Size on disk: {}", entry.size_on_disk);
+        debug!("Uncompressed size: {}", entry.uncompressed_size);
 
         reader.seek(SeekFrom::Start(file_pos_start)).expect("Could not find position in file");
 
@@ -177,4 +182,6 @@ fn main() {
         let mut file = File::create(format!("{}/{}/{}", base_path, path, file_name)).unwrap();
         file.write_all(uncompressed_file.as_slice()).unwrap();
     });
+
+    info!("Unpacking took {:?}", now.elapsed().as_secs());
 }
