@@ -100,7 +100,10 @@ impl FileEntry {
 
 fn main() {
     let now = Instant::now();
-    env_logger::builder().try_init().unwrap();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .try_init()
+        .unwrap();
 
     // todo: add good argument parser
     let path = std::env::args().last().unwrap();
@@ -183,5 +186,12 @@ fn main() {
         file.write_all(uncompressed_file.as_slice()).unwrap();
     });
 
-    info!("Unpacking took {:?}", now.elapsed().as_secs());
+    let elapsed_time = now.elapsed();
+
+    if elapsed_time.as_secs() == 0 {
+        info!("Unpacking took {:?}ms", elapsed_time.as_millis());
+    } else {
+        info!("Unpacking took {:?}s", elapsed_time.as_secs());
+    }
+
 }
