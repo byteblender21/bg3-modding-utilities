@@ -102,7 +102,9 @@ fn main() {
     let f = File::open(path.clone()).expect("no file found");
 
     let file_name = path.split("/").last().unwrap();
-    let base_path = path.replace(file_name, "");
+    let file_name_without_extension = file_name.replace(".pak", "");
+
+    let base_path = path.replace(file_name, "") + "/" + file_name_without_extension.as_str();
 
     let mut reader = BufReader::new(f);
 
