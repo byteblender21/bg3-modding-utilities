@@ -68,7 +68,7 @@ impl PackHeader {
 }
 
 impl FileEntry {
-    fn from_reader(mut rdr: &mut impl Read) -> io::Result<Self> {
+    fn from_reader(rdr: &mut impl Read) -> io::Result<Self> {
         let mut name_buffer = vec![0u8; NAME_SIZE];
         rdr.read_exact(&mut name_buffer)?;
 
@@ -99,7 +99,10 @@ impl FileEntry {
 fn main() {
     // todo: add good argument parser
     let path = std::env::args().last().unwrap();
-    let f = File::open(path).expect("no file found");
+    let f = File::open(path.clone()).expect("no file found");
+
+    let file_name = path.split("/").last().unwrap();
+    let base_path = path.replace(file_name, "");
 
     let mut reader = BufReader::new(f);
 
@@ -111,6 +114,8 @@ fn main() {
     }
 
     let pak_version = reader.read_u32::<LittleEndian>().unwrap();
+    println!("Pak version: {}", pak_version);
+
     let header = PackHeader::from_reader(&mut reader, pak_version).unwrap();
 
     reader.seek(SeekFrom::Start(header.file_list_offset)).expect("TODO: panic message");
@@ -119,6 +124,7 @@ fn main() {
     let compressed_size = reader.read_i32::<LittleEndian>().unwrap();
 
     println!("start file list: {:?}", header.file_list_offset);
+    println!("flags: {:?}", header.flags);
     println!("num_files: {:?}", num_files);
     println!("compressed_size: {:?}", compressed_size);
 
@@ -130,7 +136,7 @@ fn main() {
     let uncompressed_list_buffer = lz4_flex::decompress(
         &compressed_file_list,
         file_buffer_size
-    ).expect("TODO: panic message");
+    ).expect("Failed to decompress file list");
 
     let mut uncompressed_reader = BufReader::new(uncompressed_list_buffer.as_slice());
     let mut file_entries: Vec<FileEntry>  = vec![];
@@ -143,23 +149,30 @@ fn main() {
     file_entries.into_iter().for_each(|entry| {
         let pos_shifted = (entry.offset_in_file2 as u64) << 32;
         let file_pos_start = (entry.offset_in_file1 as u64 | pos_shifted);
+        println!("file: {}", entry.name);
         println!("Offset in file: {}", file_pos_start);
+        println!("Size on disk: {}", entry.size_on_disk);
+        println!("Uncompressed size: {}", entry.uncompressed_size);
 
         reader.seek(SeekFrom::Start(file_pos_start)).expect("Could not find position in file");
 
         let mut compressed_file = vec![0u8; entry.size_on_disk as usize];
         reader.read_exact(&mut compressed_file).unwrap();
 
-        let uncompressed_file = lz4_flex::decompress(
-            &compressed_file,
-            entry.uncompressed_size as usize
-        ).expect("TODO: panic message");
+        let uncompressed_file = if entry.uncompressed_size == 0 {
+            compressed_file
+        } else {
+            lz4_flex::decompress(
+                &compressed_file,
+                entry.uncompressed_size as usize
+            ).expect("Failed to decompress file")
+        };
 
         let file_name = entry.name.split("/").last().unwrap();
         let path = entry.name.replace(file_name, "");
-        std::fs::create_dir_all(path).unwrap();
+        std::fs::create_dir_all(format!("{}/{}", base_path, path)).unwrap();
 
-        let mut file = File::create(entry.name).unwrap();
+        let mut file = File::create(format!("{}/{}/{}", base_path, path, file_name)).unwrap();
         file.write_all(uncompressed_file.as_slice()).unwrap();
     });
 }
