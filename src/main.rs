@@ -116,7 +116,6 @@ fn main() {
 
     let args = Args::parse();
 
-    // todo: add good argument parser
     let path = args.input_path;
     let f = File::open(path.clone()).expect("no file found");
 
