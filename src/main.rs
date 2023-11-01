@@ -3,6 +3,7 @@ use std::io;
 use std::io::{BufReader, Read, Seek, SeekFrom, Write};
 use std::time::Instant;
 use byteorder::{LittleEndian, ReadBytesExt};
+use clap::Parser;
 use log::{debug, info};
 
 const PAK_SIGNATURE: [u8; 4] = [
@@ -98,6 +99,14 @@ impl FileEntry {
     }
 }
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long, alias = "i")]
+    input_path: String,
+}
+
 fn main() {
     let now = Instant::now();
     env_logger::builder()
@@ -105,8 +114,10 @@ fn main() {
         .try_init()
         .unwrap();
 
+    let args = Args::parse();
+
     // todo: add good argument parser
-    let path = std::env::args().last().unwrap();
+    let path = args.input_path;
     let f = File::open(path.clone()).expect("no file found");
 
     let file_name = path.split("/").last().unwrap();
