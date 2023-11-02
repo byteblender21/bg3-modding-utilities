@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use clap::Parser;
 use log::info;
-use bg3_unpacker::pak::unpack_pak_file;
+use bg3_unpacker::stat::parse_stat_file;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -23,7 +23,8 @@ fn main() {
     let path = args.input_path;
 
     let now = Instant::now();
-    unpack_pak_file(path.as_str());
+    let stats = parse_stat_file(path.as_str());
+    println!("Stats: {:?}", stats);
     let elapsed_time = now.elapsed();
 
     if elapsed_time.as_secs() == 0 {

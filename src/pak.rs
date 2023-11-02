@@ -98,7 +98,7 @@ impl FileEntry {
 }
 
 pub fn unpack_pak_file(path: &str) {
-    let f = File::open(path.clone()).expect("no file found");
+    let f = File::open(path.clone()).expect("file not found");
 
     let file_name = path.split("/").last().unwrap();
     let file_name_without_extension = file_name.replace(".pak", "");
